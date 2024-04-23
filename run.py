@@ -76,10 +76,29 @@ if __name__ == '__main__':
             depth = depth_anything(image)
         
         depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
+        depth_encoded = (depth - depth.min()) / (depth.max() - depth.min()) * (2**24 - 1)
         depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
+
+        print(depth.shape, depth_encoded.shape)
         
-        depth = depth.cpu().numpy().astype(np.uint8)
-        
+        depth = depth.cpu().numpy().astype(np.uint8) 
+        depth_encoded = depth_encoded.cpu().numpy()
+
+        nh = 800
+        nw = int(nh * depth_encoded.shape[1] / depth_encoded.shape[0])
+        # Resize using cv2 (OpenCV)
+        resized_depth_encoded = cv2.resize(depth_encoded, (nw, nh), interpolation=cv2.INTER_AREA)
+        print(resized_depth_encoded.shape)
+
+        def encodeValueToRGB(depth_encoded):
+            r = (depth_encoded / 256 / 256) % 256
+            g = (depth_encoded / 256) % 256
+            b = depth_encoded % 256
+            return np.stack([b, g, r], axis=-1).astype(np.uint8)
+
+        depth_encoded = encodeValueToRGB(depth_encoded)
+        resized_depth_encoded = encodeValueToRGB(resized_depth_encoded)
+
         if args.grayscale:
             depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
         else:
@@ -89,6 +108,14 @@ if __name__ == '__main__':
         
         if args.pred_only:
             cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth.png'), depth)
+            cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth_encoded.png'), depth_encoded)
+            cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth_encoded_800.png'), resized_depth_encoded)
+            # depth_decoded_debug = cv2.imread(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth_encoded.png'))
+            # depth_decoded_debug = cv2.cvtColor(depth_decoded_debug, cv2.COLOR_BGR2RGB)
+            # print(depth_decoded_debug[100, 100])
+            # depth_decoded_debug = (depth_decoded_debug[..., 0] * 256.0 * 256 + depth_decoded_debug[..., 1] * 256.0 + depth_decoded_debug[..., 2]) / (2**24 - 1) * 255.0
+            # print(depth_decoded_debug[100, 100])
+            # cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth_debug.png'), depth_decoded_debug)
         else:
             split_region = np.ones((raw_image.shape[0], margin_width, 3), dtype=np.uint8) * 255
             combined_results = cv2.hconcat([raw_image, split_region, depth])
