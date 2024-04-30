@@ -87,11 +87,6 @@ if __name__ == '__main__':
     # flipImages('flip', warped, img0)
     # waitKey()
 
-
-
-
-    
-
   if args.process:
     print('Processing depth')
     filename = os.path.basename(args.video_path)
@@ -222,8 +217,9 @@ if __name__ == '__main__':
       with torch.no_grad():
         depth = depth_anything(frame)
 
-      depth = F.interpolate(
-          depth[None], (frame_height, frame_width), mode='bilinear', align_corners=False)[0, 0]
+      # depth = F.interpolate(
+          # depth[None], (frame_height, frame_width), mode='bilinear', align_corners=False)[0, 0]
+      depth = depth[0]
 
       # save depth as binary file
       depth = depth.cpu().numpy()
