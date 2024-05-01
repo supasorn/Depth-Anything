@@ -107,7 +107,7 @@ def process_files(event):
                     filename_base = os.path.basename(filename)
                     output_path = os.path.join(args.path, filename_base[:filename_base.rfind('.')])
 
-                    if os.path.exists(os.path.join(output_path, f"0000.npy")):
+                    if os.path.exists(output_path + "_processed.mp4") or os.path.exists(os.path.join(output_path, f"0000.npy")):
                         continue
                     os.makedirs(output_path, exist_ok=True)
 
@@ -137,8 +137,8 @@ def process_files(event):
 
                     os.system("cd /data/supasorn/opticalflow_ce_standalone; ./process_video " + output_path)
                     os.system(f"ffmpeg -i {output_path}_processed.mp4 -i {filename} -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 {output_path}_processed_audio.mp4")
-                    os.system("rm {output_path}_processed.mp4")
-                    os.system("mv {output_path}_processed_audio.mp4 {output_path}_processed.mp4")
+                    os.system(f"rm {output_path}_processed.mp4")
+                    os.system(f"mv {output_path}_processed_audio.mp4 {output_path}_processed.mp4")
                     
                 
 
