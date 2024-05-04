@@ -111,7 +111,6 @@ def process_files(event):
                         continue
                     os.makedirs(output_path, exist_ok=True)
 
-
                     count = 0
                     while raw_video.isOpened():
                       ret, raw_frame = raw_video.read()
