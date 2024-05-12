@@ -34,6 +34,7 @@ class MyHandler(FileSystemEventHandler):
         print("Got moved event dest path: ", event.dest_path)
         # copy the file to /data/supasorn/img3dviewer/images
         os.system("cp " + event.dest_path + " /data/supasorn/img3dviewer/images")
+        os.system("rm " + event.dest_path)
         with open("/tmp/my_pipe", "w", os.O_NONBLOCK) as f:
             f.write("watch dog\n")
 
