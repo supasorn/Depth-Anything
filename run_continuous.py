@@ -72,11 +72,13 @@ def process_files(event):
                     depth = depth.cpu().numpy().astype(np.uint8) 
                     depth_encoded = depth_encoded.cpu().numpy()
 
-                    nh = 800
-                    nw = int(nh * depth_encoded.shape[1] / depth_encoded.shape[0])
+                    # nh = 800
+                    # nw = int(nh * depth_encoded.shape[1] / depth_encoded.shape[0])
                     # Resize using cv2 (OpenCV)
-                    resized_depth_encoded = cv2.resize(depth_encoded, (nw, nh), interpolation=cv2.INTER_AREA)
-                    print(resized_depth_encoded.shape)
+                    # resized_depth_encoded = cv2.resize(depth_encoded, (nw, nh), interpolation=cv2.INTER_AREA)
+                    # resized_depth_encoded = depth_encoded
+
+                    # print(resized_depth_encoded.shape)
 
                     def encodeValueToRGB(depth_encoded):
                         r = (depth_encoded / 256 / 256) % 256
@@ -85,15 +87,16 @@ def process_files(event):
                         return np.stack([b, g, r], axis=-1).astype(np.uint8)
 
                     depth_encoded = encodeValueToRGB(depth_encoded)
-                    resized_depth_encoded = encodeValueToRGB(resized_depth_encoded)
+                    # resized_depth_encoded = encodeValueToRGB(resized_depth_encoded)
 
-                    depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
+                    # depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
                     
                     filename = os.path.basename(filename)
                     
                     # cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth.png'), depth)
                     # cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth_encoded.png'), depth_encoded)
-                    cv2.imwrite(os.path.join(args.path, "depth", filename[:-4] + '.png'), resized_depth_encoded)
+                    # cv2.imwrite(os.path.join(args.path, "depth", filename[:-4] + '.png'), resized_depth_encoded)
+                    cv2.imwrite(os.path.join(args.path, "depth", filename[:-4] + '.png'), depth_encoded)
                 elif kind == "video":
                     if "processed" in filename:
                         continue
