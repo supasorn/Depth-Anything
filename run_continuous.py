@@ -45,7 +45,6 @@ def process_files(event):
                     continue
 
                 filename = os.path.join(args.path, filename)
-                print("reading", filename)
 
                 
                 if kind == "image":
@@ -54,6 +53,8 @@ def process_files(event):
                         image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB) / 255.0
                     except:
                         continue
+
+                    print("reading", filename)
                     
                     h, w = image.shape[:2]
                     
@@ -63,7 +64,10 @@ def process_files(event):
                     with torch.no_grad():
                         depth = depth_anything(image)
                     
-                    depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
+                    print(depth.shape)
+                    # depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
+                    depth = depth[0]
+
                     depth_encoded = (depth - depth.min()) / (depth.max() - depth.min()) * (2**24 - 1)
                     depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
 
@@ -96,10 +100,20 @@ def process_files(event):
                     # cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth.png'), depth)
                     # cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth_encoded.png'), depth_encoded)
                     # cv2.imwrite(os.path.join(args.path, "depth", filename[:-4] + '.png'), resized_depth_encoded)
-                    cv2.imwrite(os.path.join(args.path, "depth", filename[:-4] + '.png'), depth_encoded)
+                    outfile = os.path.join(args.path, "depth", filename[:-4] + '.png')
+                    cv2.imwrite(outfile, depth_encoded)
+                    print("writing ", outfile)
                 elif kind == "video":
                     if "processed" in filename:
                         continue
+
+                    filename_base = os.path.basename(filename)
+                    output_path = os.path.join(args.path, filename_base[:filename_base.rfind('.')])
+
+                    if os.path.exists(output_path + "_processed.mp4") or os.path.exists(os.path.join(output_path, f"0000.npy")):
+                        continue
+
+                    print("reading", filename)
 
                     raw_video = cv2.VideoCapture(filename)
                     frame_width, frame_height = int(raw_video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(
@@ -107,11 +121,6 @@ def process_files(event):
                     frame_rate = int(raw_video.get(cv2.CAP_PROP_FPS))
                     output_width = frame_width * 2 
 
-                    filename_base = os.path.basename(filename)
-                    output_path = os.path.join(args.path, filename_base[:filename_base.rfind('.')])
-
-                    if os.path.exists(output_path + "_processed.mp4") or os.path.exists(os.path.join(output_path, f"0000.npy")):
-                        continue
                     os.makedirs(output_path, exist_ok=True)
 
                     count = 0
