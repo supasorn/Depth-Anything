@@ -20,6 +20,45 @@ parser.add_argument('--encoder', type=str, default='vitl', choices=['vits', 'vit
 
 args = parser.parse_args()
 
+def estimate(depth_anything, infile, outfile):
+    print("reading", infile)
+
+    try:
+        raw_image = cv2.imread(infile)
+        image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB) / 255.0
+    except:
+        return
+    
+    h, w = image.shape[:2]
+    
+    image = transform({'image': image})['image']
+    image = torch.from_numpy(image).unsqueeze(0).to(DEVICE)
+    
+    with torch.no_grad():
+        depth = depth_anything(image)
+    
+    print(depth.shape)
+    depth = depth[0]
+
+    depth_encoded = (depth - depth.min()) / (depth.max() - depth.min()) * (2**24 - 1)
+    depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
+
+    print(depth.shape, depth_encoded.shape)
+    
+    depth = depth.cpu().numpy().astype(np.uint8) 
+    depth_encoded = depth_encoded.cpu().numpy()
+
+    def encodeValueToRGB(depth_encoded):
+        r = (depth_encoded / 256 / 256) % 256
+        g = (depth_encoded / 256) % 256
+        b = depth_encoded % 256
+        return np.stack([b, g, r], axis=-1).astype(np.uint8)
+
+    depth_encoded = encodeValueToRGB(depth_encoded)
+
+    cv2.imwrite(outfile, depth_encoded)
+    print("writing ", outfile)
+
 def process_files(event):
     
     pipe_path = "/tmp/my_pipe"
@@ -48,61 +87,10 @@ def process_files(event):
 
                 
                 if kind == "image":
-                    try:
-                        raw_image = cv2.imread(filename)
-                        image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB) / 255.0
-                    except:
-                        continue
-
-                    print("reading", filename)
+                    filename_sans_type = os.path.basename(filename).split('.')[0]
+                    outfile = os.path.join(args.path, "depth", filename_sans_type + '.png')
+                    estimate(depth_anything, filename, outfile)
                     
-                    h, w = image.shape[:2]
-                    
-                    image = transform({'image': image})['image']
-                    image = torch.from_numpy(image).unsqueeze(0).to(DEVICE)
-                    
-                    with torch.no_grad():
-                        depth = depth_anything(image)
-                    
-                    print(depth.shape)
-                    # depth = F.interpolate(depth[None], (h, w), mode='bilinear', align_corners=False)[0, 0]
-                    depth = depth[0]
-
-                    depth_encoded = (depth - depth.min()) / (depth.max() - depth.min()) * (2**24 - 1)
-                    depth = (depth - depth.min()) / (depth.max() - depth.min()) * 255.0
-
-                    print(depth.shape, depth_encoded.shape)
-                    
-                    depth = depth.cpu().numpy().astype(np.uint8) 
-                    depth_encoded = depth_encoded.cpu().numpy()
-
-                    # nh = 800
-                    # nw = int(nh * depth_encoded.shape[1] / depth_encoded.shape[0])
-                    # Resize using cv2 (OpenCV)
-                    # resized_depth_encoded = cv2.resize(depth_encoded, (nw, nh), interpolation=cv2.INTER_AREA)
-                    # resized_depth_encoded = depth_encoded
-
-                    # print(resized_depth_encoded.shape)
-
-                    def encodeValueToRGB(depth_encoded):
-                        r = (depth_encoded / 256 / 256) % 256
-                        g = (depth_encoded / 256) % 256
-                        b = depth_encoded % 256
-                        return np.stack([b, g, r], axis=-1).astype(np.uint8)
-
-                    depth_encoded = encodeValueToRGB(depth_encoded)
-                    # resized_depth_encoded = encodeValueToRGB(resized_depth_encoded)
-
-                    # depth = np.repeat(depth[..., np.newaxis], 3, axis=-1)
-                    
-                    filename = os.path.basename(filename)
-                    
-                    # cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth.png'), depth)
-                    # cv2.imwrite(os.path.join(args.outdir, filename[:filename.rfind('.')] + '_depth_encoded.png'), depth_encoded)
-                    # cv2.imwrite(os.path.join(args.path, "depth", filename[:-4] + '.png'), resized_depth_encoded)
-                    outfile = os.path.join(args.path, "depth", filename[:-4] + '.png')
-                    cv2.imwrite(outfile, depth_encoded)
-                    print("writing ", outfile)
                 elif kind == "video":
                     if "processed" in filename:
                         continue
